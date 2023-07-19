@@ -1,0 +1,62 @@
+version: "3"
+
+services:
+  redis-exchange:
+    container_name: redis-exchange
+    image: redis:latest
+    command: >
+      --requirepass ${DOCKER_REDIS_PASSWORD}
+    volumes:
+      - data-redis-exchange:/var/lib/redis/data
+    ports:
+      - "${DOCKER_REDIS_PORT}:6379"
+  db-exchange:
+    image: mariadb:latest
+    container_name: db-exchange
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${DB_DATABASE}
+      MARIADB_USER: ${DB_USERNAME}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - data-db-exchange:/var/lib/mysql
+    ports:
+      - ${DB_PORT}:3306
+  phpmyadmin-exchange:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin-exchange
+    depends_on:
+      - db-exchange
+    ports:
+      - ${PHPMYADMIN_PROT}:80
+    links:
+      - db-exchange
+    environment:
+      PMA_PORT: 3306
+      PMA_HOST: db-exchange
+  laravel-exchange:
+    container_name: laravel-exchange
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    depends_on:
+      - redis-exchange
+      - db-exchange
+    volumes:
+      - ../:/var/www
+    ports:
+      - ${LARAVEL_PORT}:9000
+  nginx-exchange:
+    container_name: nginx-exchange
+    image: nginx:latest
+    ports:
+      - ${NGINX_PORT}:80
+    depends_on:
+      - laravel-exchange
+    volumes:
+      - ../:/var/www
+      - ./nginx/${FOLDER_CONF}:/etc/nginx/conf.d
+      - ./nginx/generalconfig:/etc/nginx/generalconfig
+volumes:
+  data-db-exchange:
+  data-redis-exchange:
